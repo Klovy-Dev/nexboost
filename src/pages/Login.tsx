@@ -4,6 +4,7 @@ import { Eye, EyeOff, Zap, AlertCircle, ArrowLeft, Activity, Shield, Monitor } f
 import { loginUser, initDatabase } from "../lib/db";
 import type { UserData } from "../App";
 import TitleBar from "../components/TitleBar";
+import nexboostLogo from "../assets/nexboost-logo.svg";
 
 interface Props { onLogin: (user: UserData) => void; }
 
@@ -55,13 +56,7 @@ export default function Login({ onLogin }: Props) {
           <div>
             {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 26 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontFamily: "'Orbitron', monospace", fontWeight: 900, fontSize: 10, color: "#38bdf8" }}>NB</span>
-              </div>
+              <img src={nexboostLogo} alt="NexBoost" style={{ width: 36, height: 36, borderRadius: 9, flexShrink: 0 }} />
               <div>
                 <div style={{ fontFamily: "'Orbitron', monospace", fontWeight: 700, fontSize: 13, color: "#f1f5f9", letterSpacing: "0.12em" }}>NEXBOOST</div>
                 <div style={{ fontSize: 10, color: "#4b5563" }}>Gaming Optimizer</div>
@@ -137,13 +132,7 @@ export default function Login({ onLogin }: Props) {
           <div style={{ width: "100%", maxWidth: 340 }} className="animate-fadeIn">
             {/* Logo centré */}
             <div style={{ textAlign: "center", marginBottom: 22 }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px",
-                background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontFamily: "'Orbitron', monospace", fontWeight: 900, fontSize: 11, color: "#38bdf8" }}>NB</span>
-              </div>
+              <img src={nexboostLogo} alt="NexBoost" style={{ width: 44, height: 44, borderRadius: 11, margin: "0 auto 10px", display: "block" }} />
               <div style={{ fontFamily: "'Orbitron', monospace", fontWeight: 700, fontSize: 13, color: "#f1f5f9", letterSpacing: "0.12em" }}>NEXBOOST</div>
               <div style={{ fontSize: 10, color: "#4b5563", marginTop: 2 }}>Gaming Optimizer</div>
             </div>

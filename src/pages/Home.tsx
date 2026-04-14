@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { Zap, Activity, Shield, Monitor, ArrowRight } from "lucide-react";
 import TitleBar from "../components/TitleBar";
+import nexboostLogo from "../assets/nexboost-logo.svg";
 
 const FEATURES = [
   { icon: <Activity size={14} />, label: "Monitoring CPU · RAM · Temp en direct", color: "#38bdf8" },
@@ -48,13 +49,7 @@ export default function Home() {
           <div style={{ flex: 1 }}>
             {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 26 }}>
-              <div style={{
-                width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-                background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontFamily: "'Orbitron', monospace", fontWeight: 900, fontSize: 10, color: "#38bdf8" }}>NB</span>
-              </div>
+              <img src={nexboostLogo} alt="NexBoost" style={{ width: 42, height: 42, borderRadius: 10, flexShrink: 0 }} />
               <div>
                 <div style={{ fontFamily: "'Orbitron', monospace", fontWeight: 700, fontSize: 14, color: "#f1f5f9", letterSpacing: "0.15em" }}>NEXBOOST</div>
                 <div style={{ fontSize: 10, color: "#4b5563", marginTop: 1 }}>Gaming Optimizer</div>

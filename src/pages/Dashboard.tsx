@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import nexboostLogo from "../assets/nexboost-logo.svg";
 import { AlertTriangle, CheckCircle, Crown, LogOut, Minus, X, Zap, Settings, Wifi, Trash2, Gamepad2, LayoutDashboard, ShieldAlert, ShieldCheck, Download } from "lucide-react";
 import { check as checkUpdate } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -207,21 +208,12 @@ export default function Dashboard({ user, onLogout, onPremiumActivated }: Props)
             userSelect: "none",
           }}
         >
-          {/* Logo OP */}
-          <div
-            style={{
-              width: 30, height: 30, borderRadius: 7, marginBottom: 14,
-              background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.25)",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}
-          >
-            <span
-              className="font-orbitron font-black"
-              style={{ fontSize: 7, color: "#38bdf8", letterSpacing: "0.05em" }}
-            >
-              NB
-            </span>
-          </div>
+          {/* Logo NexBoost */}
+          <img
+            src={nexboostLogo}
+            alt="NexBoost"
+            style={{ width: 30, height: 30, borderRadius: 7, marginBottom: 14, flexShrink: 0 }}
+          />
 
           {/* Navigation */}
           <nav style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", padding: "0 8px" }}>
@@ -332,88 +324,6 @@ export default function Dashboard({ user, onLogout, onPremiumActivated }: Props)
         {/* ── Zone principale ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-          {/* ── Bannière mise à jour ── */}
-          {updateVersion && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "6px 14px",
-              background: "rgba(56,189,248,0.07)",
-              borderBottom: "1px solid rgba(56,189,248,0.18)",
-              flexShrink: 0,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <Download size={12} style={{ color: "#38bdf8", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: "#38bdf8", fontWeight: 500 }}>
-                  NexBoost <strong>v{updateVersion}</strong> est disponible
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button
-                  onClick={() => setUpdateVersion(null)}
-                  style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", padding: 2, display: "flex" }}
-                >
-                  <X size={10} />
-                </button>
-                <button
-                  onClick={handleInstallUpdate}
-                  disabled={installing}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "3px 10px", borderRadius: 5,
-                    fontSize: 10, fontWeight: 700, cursor: installing ? "not-allowed" : "pointer",
-                    background: "rgba(56,189,248,0.15)",
-                    border: "1px solid rgba(56,189,248,0.35)",
-                    color: "#38bdf8", transition: "all 0.15s", flexShrink: 0,
-                  }}
-                  onMouseEnter={e => { if (!installing) e.currentTarget.style.background = "rgba(56,189,248,0.25)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(56,189,248,0.15)"; }}
-                >
-                  {installing
-                    ? <><div className="animate-spin" style={{ width: 9, height: 9, borderRadius: "50%", border: "2px solid rgba(56,189,248,0.2)", borderTopColor: "#38bdf8" }} /> Installation...</>
-                    : <><Download size={9} /> Installer</>}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Bannière admin ── */}
-          {isAdmin === false && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "6px 14px",
-              background: "rgba(251,191,36,0.07)",
-              borderBottom: "1px solid rgba(251,191,36,0.18)",
-              flexShrink: 0,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <ShieldAlert size={12} style={{ color: "#fbbf24", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: "#fbbf24", fontWeight: 500 }}>
-                  Mode limité — certains tweaks nécessitent les droits administrateur
-                </span>
-              </div>
-              <button
-                onClick={handleRelaunchAdmin}
-                disabled={relaunching}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "3px 10px", borderRadius: 5,
-                  fontSize: 10, fontWeight: 700, cursor: relaunching ? "not-allowed" : "pointer",
-                  background: "rgba(251,191,36,0.12)",
-                  border: "1px solid rgba(251,191,36,0.35)",
-                  color: "#fbbf24", transition: "all 0.15s",
-                  flexShrink: 0,
-                }}
-                onMouseEnter={e => { if (!relaunching) e.currentTarget.style.background = "rgba(251,191,36,0.22)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(251,191,36,0.12)"; }}
-              >
-                {relaunching
-                  ? <div className="animate-spin" style={{ width: 9, height: 9, borderRadius: "50%", border: "2px solid rgba(251,191,36,0.2)", borderTopColor: "#fbbf24" }} />
-                  : <ShieldAlert size={9} />}
-                {relaunching ? "Relancement..." : "Relancer en admin"}
-              </button>
-            </div>
-          )}
-
           {/* ── Barre du haut (drag + fenêtre) ── */}
           <div
             onMouseDown={handleDragStart}
@@ -426,25 +336,92 @@ export default function Dashboard({ user, onLogout, onPremiumActivated }: Props)
               cursor: "default",
             }}
           >
-            {/* Live + temp alert (gauche) */}
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, paddingLeft: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#22c55e" }} />
-                <span style={{ fontSize: 8, letterSpacing: "0.08em", textTransform: "uppercase", color: "#1e3a2f" }}>
-                  Live
-                </span>
-              </div>
-              {tempAlert && (
-                <div
-                  className="flex items-center gap-1 animate-fadeIn"
-                  style={{
-                    fontSize: 8, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
-                    background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)",
-                    color: "#f87171", display: "flex", alignItems: "center", gap: 3,
-                  }}
-                >
-                  <AlertTriangle size={7} /> {stats.temp}°C
-                </div>
+            {/* Gauche : alerte admin / update / live */}
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, paddingLeft: 4, minWidth: 0 }}>
+              {isAdmin === false ? (
+                /* ── Alerte admin dans la titlebar ── */
+                <>
+                  <ShieldAlert size={10} style={{ color: "#fbbf24", flexShrink: 0 }} />
+                  <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 500, whiteSpace: "nowrap" }}>
+                    Mode limité
+                  </span>
+                  <button
+                    onClick={handleRelaunchAdmin}
+                    disabled={relaunching}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "2px 8px", borderRadius: 4,
+                      fontSize: 9, fontWeight: 700,
+                      cursor: relaunching ? "not-allowed" : "pointer",
+                      background: "rgba(251,191,36,0.12)",
+                      border: "1px solid rgba(251,191,36,0.3)",
+                      color: "#fbbf24", transition: "all 0.15s", flexShrink: 0,
+                    }}
+                    onMouseEnter={e => { if (!relaunching) e.currentTarget.style.background = "rgba(251,191,36,0.22)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(251,191,36,0.12)"; }}
+                  >
+                    {relaunching
+                      ? <div className="animate-spin" style={{ width: 7, height: 7, borderRadius: "50%", border: "2px solid rgba(251,191,36,0.2)", borderTopColor: "#fbbf24" }} />
+                      : <ShieldAlert size={8} />}
+                    {relaunching ? "Relancement..." : "Relancer en admin"}
+                  </button>
+                </>
+              ) : updateVersion ? (
+                /* ── Alerte mise à jour dans la titlebar ── */
+                <>
+                  <Download size={10} style={{ color: "#38bdf8", flexShrink: 0 }} />
+                  <span style={{ fontSize: 9, color: "#38bdf8", fontWeight: 500, whiteSpace: "nowrap" }}>
+                    v{updateVersion} dispo
+                  </span>
+                  <button
+                    onClick={handleInstallUpdate}
+                    disabled={installing}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "2px 8px", borderRadius: 4,
+                      fontSize: 9, fontWeight: 700,
+                      cursor: installing ? "not-allowed" : "pointer",
+                      background: "rgba(56,189,248,0.12)",
+                      border: "1px solid rgba(56,189,248,0.3)",
+                      color: "#38bdf8", transition: "all 0.15s", flexShrink: 0,
+                    }}
+                    onMouseEnter={e => { if (!installing) e.currentTarget.style.background = "rgba(56,189,248,0.22)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(56,189,248,0.12)"; }}
+                  >
+                    {installing
+                      ? <div className="animate-spin" style={{ width: 7, height: 7, borderRadius: "50%", border: "2px solid rgba(56,189,248,0.2)", borderTopColor: "#38bdf8" }} />
+                      : <Download size={8} />}
+                    {installing ? "Installation..." : "Installer"}
+                  </button>
+                  <button
+                    onClick={() => setUpdateVersion(null)}
+                    style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }}
+                  >
+                    <X size={9} />
+                  </button>
+                </>
+              ) : (
+                /* ── Indicateur live normal ── */
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#22c55e" }} />
+                    <span style={{ fontSize: 8, letterSpacing: "0.08em", textTransform: "uppercase", color: "#1e3a2f" }}>
+                      Live
+                    </span>
+                  </div>
+                  {tempAlert && (
+                    <div
+                      className="animate-fadeIn"
+                      style={{
+                        fontSize: 8, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
+                        background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)",
+                        color: "#f87171", display: "flex", alignItems: "center", gap: 3,
+                      }}
+                    >
+                      <AlertTriangle size={7} /> {stats.temp}°C
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

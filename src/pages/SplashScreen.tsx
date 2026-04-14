@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import nexboostLogo from "../assets/nexboost-logo.svg";
 
 interface Props { onDone: () => void; }
 
@@ -115,21 +116,15 @@ export default function SplashScreen({ onDone }: Props) {
         }} />
 
         {/* Logo NB */}
-        <div style={{
-          width: 88, height: 88, borderRadius: 20,
-          background: "rgba(56,189,248,0.07)",
-          border: "1px solid rgba(56,189,248,0.28)",
-          boxShadow: "0 0 40px rgba(56,189,248,0.12), inset 0 0 20px rgba(56,189,248,0.04)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          position: "relative",
-        }}>
-          <span style={{
-            fontFamily: "'Orbitron', monospace",
-            fontWeight: 900, fontSize: 26, color: "#38bdf8",
-            letterSpacing: "0.05em",
-            textShadow: "0 0 20px rgba(56,189,248,0.5)",
-          }}>NB</span>
-        </div>
+        <img
+          src={nexboostLogo}
+          alt="NexBoost"
+          style={{
+            width: 88, height: 88, borderRadius: 20,
+            boxShadow: "0 0 40px rgba(0,229,255,0.18), 0 0 80px rgba(0,229,255,0.08)",
+            position: "relative",
+          }}
+        />
       </div>
 
       {/* ── Titre ── */}
