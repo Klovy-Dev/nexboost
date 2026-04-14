@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -14,79 +14,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: Nettoyer le bundle cache
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force "src-tauri/target/release/bundle" -ErrorAction SilentlyContinue
-
-      - name: Préparer la clé de signature
+      # Écrire la clé dans un fichier et passer son CHEMIN à Tauri
+      # C'est la méthode la plus fiable : Tauri lit le fichier directement
+      - name: Decode signing key
         shell: pwsh
         env:
           KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
-          # Décoder le secret base64 → texte minisign brut
-          $keyBase64 = $env:KEY_B64.Trim()
-          $keyBytes  = [Convert]::FromBase64String($keyBase64)
-          $keyText   = [System.Text.Encoding]::UTF8.GetString($keyBytes)
-          Write-Host "Clé décodée ($($keyBytes.Length) octets) :"
-          Write-Host ($keyText -replace '(?m)^', '  ')
-
-          # Écrire la clé dans un fichier physique (pour la signature manuelle)
-          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\signing.key", $keyBytes)
-          "SIGNING_KEY_FILE=$env:RUNNER_TEMP\signing.key" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-          # Passer le TEXTE brut à Tauri via la syntaxe multiline de GITHUB_ENV
-          "TAURI_SIGNING_PRIVATE_KEY<<TAURI_KEY_EOF" | Out-File -FilePath $env:GITHUB_ENV -Append
-          # Out-File ajoute un CRLF ; on veut exactement le contenu sans newline final
-          [IO.File]::AppendAllText($env:GITHUB_ENV, $keyText + "`n")
-          "TAURI_KEY_EOF" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-          "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "GITHUB_ENV mis à jour."
+          $keyPath  = "$env:RUNNER_TEMP\nexboost.key"
+          $keyBytes = [Convert]::FromBase64String($env:KEY_B64.Trim())
+          [IO.File]::WriteAllBytes($keyPath, $keyBytes)
+          Write-Host "Cle ecrite : $keyPath ($($keyBytes.Length) octets)"
+          "TAURI_SIGNING_PRIVATE_KEY=$keyPath"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TAURI_SIGNING_PRIVATE_KEY_PASSWORD="  | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build Tauri app
         shell: pwsh
         run: npm run tauri build
 
-      - name: Signer le bundle NSIS (si non signé)
-        shell: pwsh
-        run: |
-          $nsisZip = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip" |
-                       Where-Object { $_.Name -notlike "*.sig" } | Select-Object -First 1
-          if (-not $nsisZip) { throw "Fichier .nsis.zip introuvable !" }
-
-          $sigPath = "$($nsisZip.FullName).sig"
-          if (Test-Path $sigPath) {
-            Write-Host "Signature deja presente : $sigPath"
-          } else {
-            Write-Host "Signature manuelle de : $($nsisZip.FullName)"
-            # Utiliser -f (chemin fichier) : pas de souci avec l'arg vide du mot de passe
-            # TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" est déjà dans l'env via GITHUB_ENV
-            npm run tauri -- signer sign -f $env:SIGNING_KEY_FILE $nsisZip.FullName
-            if ($LASTEXITCODE -ne 0) { throw "Echec de la signature (exit $LASTEXITCODE)" }
-          }
-
-          if (-not (Test-Path $sigPath)) { throw "Fichier .sig toujours absent !" }
-          Write-Host "Signature OK : $sigPath"
-
-      - name: Créer la release et uploader latest.json
+      - name: Create GitHub release
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,35 +54,26 @@ jobs:
           $tag     = "${{ github.ref_name }}"
           $version = $tag -replace '^v', ''
 
-          Write-Host "=== Contenu du dossier bundle ==="
-          Get-ChildItem -Recurse "src-tauri/target/release/bundle/" | Select-Object -ExpandProperty FullName
+          Write-Host "=== Contenu bundle ==="
+          Get-ChildItem -Recurse "src-tauri/target/release/bundle" | ForEach-Object { $_.FullName }
 
-          $exe     = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" |
+          $exe     = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" `
+                       -Filter "*_x64-setup.exe" | Select-Object -First 1
+          $nsisZip = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" `
+                       -Filter "*.nsis.zip" |
                        Where-Object { $_.Name -notlike "*.sig" } | Select-Object -First 1
-          $msi     = Get-ChildItem -Recurse "src-tauri/target/release/bundle/msi" -Filter "*.msi" |
-                       Where-Object { $_.Name -notlike "*.sig" -and $_.Name -notlike "*.zip" } | Select-Object -First 1
-          $nsisZip = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip" |
-                       Where-Object { $_.Name -notlike "*.sig" } | Select-Object -First 1
-          $sigFile = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip.sig" |
-                       Select-Object -First 1
+          $sigFile = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" `
+                       -Filter "*.nsis.zip.sig" | Select-Object -First 1
 
-          if (-not $sigFile)  { throw "Fichier *.nsis.zip.sig introuvable !" }
-          if (-not $nsisZip)  { throw "Fichier *.nsis.zip introuvable." }
+          if (-not $exe)     { throw "setup.exe introuvable" }
+          if (-not $nsisZip) { throw ".nsis.zip introuvable — la signature a-t-elle fonctionne ?" }
+          if (-not $sigFile) { throw ".nsis.zip.sig introuvable" }
 
-          $signature = (Get-Content $sigFile.FullName -Raw).Trim()
-          Write-Host "Signature OK : $($sigFile.Name)"
-
-          gh release create $tag `
-            --title "NexBoost $tag" `
-            --notes "NexBoost $tag" `
-            $exe.FullName `
-            $msi.FullName `
-            $nsisZip.FullName
-
+          $signature   = (Get-Content $sigFile.FullName -Raw).Trim()
           $downloadUrl = "https://github.com/Klovy-Dev/nexboost/releases/download/$tag/$($nsisZip.Name)"
           $pubDate     = (Get-Date -AsUTC -Format "yyyy-MM-ddTHH:mm:ssZ")
 
-          $payload = [ordered]@{
+          [ordered]@{
             version  = $version
             notes    = "NexBoost $tag"
             pub_date = $pubDate
@@ -132,10 +83,16 @@ jobs:
                 url       = $downloadUrl
               }
             }
-          }
-          $payload | ConvertTo-Json -Depth 10 | Out-File "latest.json" -Encoding UTF8NoBOM
+          } | ConvertTo-Json -Depth 10 | Out-File "latest.json" -Encoding UTF8NoBOM
+
           Write-Host "=== latest.json ==="
           Get-Content "latest.json"
 
-          gh release upload $tag "latest.json" --clobber
-          Write-Host "latest.json uploade !"
+          gh release create $tag `
+            --title "NexBoost $tag" `
+            --notes "NexBoost $tag" `
+            $exe.FullName `
+            $nsisZip.FullName `
+            "latest.json"
+
+          Write-Host "Release creee avec succes !"
