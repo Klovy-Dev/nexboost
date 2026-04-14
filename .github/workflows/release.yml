@@ -31,6 +31,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Nettoyer le bundle cache
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "src-tauri/target/release/bundle" -ErrorAction SilentlyContinue
+          Write-Host "Bundle précédent supprimé"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
