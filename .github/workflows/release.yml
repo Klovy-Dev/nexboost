@@ -71,7 +71,15 @@ jobs:
             Rename-Item $existingSig.FullName -NewName "$newZipName.sig"
           } else {
             Write-Host "Signature manuelle..."
-            Compress-Archive -Path $newExePath -DestinationPath $newZipPath -Force
+            # Compress-Archive utilise Deflate64 (méthode 9) non supporté par Tauri.
+            # On utilise System.IO.Compression qui produit du Deflate standard (méthode 8).
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $zipArchive = [System.IO.Compression.ZipFile]::Open($newZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+              $zipArchive, $newExePath, $newExeName,
+              [System.IO.Compression.CompressionLevel]::Optimal
+            )
+            $zipArchive.Dispose()
             Write-Host "ZIP cree : $newZipName"
 
             npm run tauri -- signer sign -k $env:TAURI_SIGNING_PRIVATE_KEY $newZipPath
