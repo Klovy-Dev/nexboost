@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import nexboostLogo from "../assets/nexboost-logo.svg";
 import { AlertTriangle, CheckCircle, Crown, LogOut, Minus, X, Zap, Settings, Wifi, Trash2, Gamepad2, LayoutDashboard, ShieldAlert, ShieldCheck, Download } from "lucide-react";
 import { check as checkUpdate } from "@tauri-apps/plugin-updater";
-import { relaunch, exit as processExit } from "@tauri-apps/plugin-process";
+import { exit as processExit } from "@tauri-apps/plugin-process";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UserData } from "../App";
