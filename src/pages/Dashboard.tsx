@@ -18,7 +18,8 @@ import CleanupTab     from "../tabs/CleanupTab";
 import GamesTab       from "../tabs/GamesTab";
 import SystemTab      from "../tabs/SystemTab";
 
-interface Props { user: UserData; onLogout: () => void; onPremiumActivated: () => void; }
+import type { PlanActivationData } from "../App";
+interface Props { user: UserData; onLogout: () => void; onPlanActivated: (d: PlanActivationData) => void; }
 
 const BG = {
   background: "#07070d",
@@ -46,7 +47,8 @@ const handleDragStart = (e: React.MouseEvent) => {
   win.startDragging().catch(() => {});
 };
 
-export default function Dashboard({ user, onLogout, onPremiumActivated }: Props) {
+export default function Dashboard({ user, onLogout, onPlanActivated }: Props) {
+  const isPro = user.plan === "pro";
   const { stats, history, info, ping, pingHistory } = useSystemStats();
 
   const [activeTab,      setActiveTab]      = useState<Tab>("dashboard");
@@ -335,11 +337,11 @@ export default function Dashboard({ user, onLogout, onPremiumActivated }: Props)
               width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 11, fontWeight: 700,
-              background: user.premium ? "rgba(168,85,247,0.2)" : "rgba(56,189,248,0.15)",
-              border: `1px solid ${user.premium ? "rgba(168,85,247,0.4)" : "rgba(56,189,248,0.3)"}`,
-              color: user.premium ? "#c084fc" : "#38bdf8",
+              background: isPro ? "rgba(168,85,247,0.2)" : "rgba(56,189,248,0.15)",
+              border: `1px solid ${isPro ? "rgba(168,85,247,0.4)" : "rgba(56,189,248,0.3)"}`,
+              color: isPro ? "#c084fc" : "#38bdf8",
             }}>
-              {user.premium ? <Crown size={11} /> : user.username.charAt(0).toUpperCase()}
+              {isPro ? <Crown size={11} /> : user.username.charAt(0).toUpperCase()}
             </div>
             {sidebarExpanded && (
               <span style={{ fontSize: 11, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -553,7 +555,7 @@ export default function Dashboard({ user, onLogout, onPremiumActivated }: Props)
               <SystemTab
                 user={user} activeCount={activeCount} perfScore={perfScore}
                 stats={stats} info={info} onLogout={onLogout}
-                onPremiumActivated={onPremiumActivated}
+                onPlanActivated={onPlanActivated}
               />
             )}
           </div>

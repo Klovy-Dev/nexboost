@@ -1,22 +1,44 @@
 import { useState, useCallback, useEffect } from "react";
-import { Crown, CheckCircle, Bell, Monitor as MonitorIcon, Power, RefreshCw, AlertTriangle, CheckCircle as Check, XCircle, Copy, LogOut } from "lucide-react";
+import { Crown, CheckCircle, Bell, Monitor as MonitorIcon, Power, RefreshCw, AlertTriangle, CheckCircle as Check, XCircle, Copy, LogOut, Zap, Calendar, RotateCcw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { activatePremiumKey } from "../lib/db";
 import type { SystemStats, SystemInfo, StartupProgram } from "../types";
-import type { UserData } from "../App";
+import type { UserData, PlanActivationData } from "../App";
 import { TWEAKS } from "../lib/constants";
+import PlanGate from "../components/PlanGate";
 
 type InnerTab = "startup" | "settings";
 
 interface Props {
-  user:               UserData;
-  activeCount:        number;
-  perfScore:          number;
-  stats:              SystemStats;
-  info:               SystemInfo | null;
-  onLogout:           () => void;
-  onPremiumActivated: () => void;
+  user:             UserData;
+  activeCount:      number;
+  perfScore:        number;
+  stats:            SystemStats;
+  info:             SystemInfo | null;
+  onLogout:         () => void;
+  onPlanActivated:  (d: PlanActivationData) => void;
+}
+
+const PRO_FEATURES = [
+  "Overlay gaming in-game",
+  "Profils de jeux illimités",
+  "Optimisations avancées",
+  "Support prioritaire",
+  "Historique illimité",
+  "Détection auto des jeux",
+];
+
+const CHECKOUT_URL_MONTHLY = "https://nexboost.fr/pro/monthly";
+const CHECKOUT_URL_ANNUAL  = "https://nexboost.fr/pro/annual";
+
+function formatExpiry(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date(iso));
+}
+
+function daysRemaining(iso: string): number {
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
 }
 
 const innerTabStyle = (active: boolean): React.CSSProperties => ({
@@ -35,8 +57,9 @@ const innerTabStyle = (active: boolean): React.CSSProperties => ({
 });
 
 export default function SystemTab({
-  user, activeCount, perfScore, stats, info, onLogout, onPremiumActivated,
+  user, activeCount, perfScore, stats, info, onLogout, onPlanActivated,
 }: Props) {
+  const isPro = user.plan === "pro";
   const [inner,       setInner]      = useState<InnerTab>("startup");
   const [appVersion,  setAppVersion] = useState("...");
 
@@ -92,12 +115,13 @@ export default function SystemTab({
 
   const handleActivateKey = async () => {
     const trimmed = keyInput.trim().toUpperCase();
-    if (!trimmed) { setKeyError("Entrez une clé Premium."); return; }
+    if (!trimmed) { setKeyError("Entrez une clé d'accès Pro."); return; }
     setKeyLoading(true); setKeyError("");
     try {
-      const ok = await activatePremiumKey(user.id, trimmed);
-      if (!ok) { setKeyError("Clé invalide ou déjà utilisée."); return; }
-      setKeySuccess(true); onPremiumActivated();
+      const result = await activatePremiumKey(user.id, trimmed);
+      if (!result) { setKeyError("Clé invalide ou déjà utilisée."); return; }
+      setKeySuccess(true);
+      onPlanActivated(result);
     } catch { setKeyError("Erreur lors de l'activation."); }
     finally { setKeyLoading(false); }
   };
@@ -136,10 +160,10 @@ export default function SystemTab({
               width: 48, height: 48, borderRadius: 12, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 18, fontWeight: 800, color: "#fff",
-              background: user.premium
+              background: isPro
                 ? "linear-gradient(135deg, #7c3aed, #a855f7)"
                 : "rgba(56,189,248,0.15)",
-              border: `1px solid ${user.premium ? "rgba(168,85,247,0.4)" : "rgba(56,189,248,0.3)"}`,
+              border: `1px solid ${isPro ? "rgba(168,85,247,0.4)" : "rgba(56,189,248,0.3)"}`,
             }}>
               {user.username.charAt(0).toUpperCase()}
             </div>
@@ -151,9 +175,9 @@ export default function SystemTab({
                 {user.email}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
-                <Crown size={9} style={{ color: user.premium ? "#a78bfa" : "#38bdf8" }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: user.premium ? "#a78bfa" : "#38bdf8" }}>
-                  {user.premium ? "Plan Premium" : "Plan Gratuit"}
+                <Crown size={9} style={{ color: isPro ? "#a78bfa" : "#38bdf8" }} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: isPro ? "#a78bfa" : "#38bdf8" }}>
+                  {isPro ? "Plan Pro" : "Plan Gratuit"}
                 </span>
               </div>
             </div>
@@ -162,7 +186,7 @@ export default function SystemTab({
           {/* Score carte */}
           <div style={{
             background: "#0c0c1a",
-            border: `1px solid ${user.premium ? "rgba(168,85,247,0.2)" : "rgba(56,189,248,0.2)"}`,
+            border: `1px solid ${isPro ? "rgba(168,85,247,0.2)" : "rgba(56,189,248,0.2)"}`,
             borderRadius: 10, padding: "10px 16px",
             display: "flex", flexDirection: "column", alignItems: "center",
             gap: 4, flexShrink: 0,
@@ -353,11 +377,11 @@ export default function SystemTab({
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: 15, fontWeight: 800,
-                      background: user.premium ? "linear-gradient(135deg,#7c3aed,#a855f7)" : "rgba(56,189,248,0.12)",
-                      border: `1px solid ${user.premium ? "rgba(168,85,247,0.4)" : "rgba(56,189,248,0.25)"}`,
-                      color: user.premium ? "#fff" : "#38bdf8",
+                      background: isPro ? "linear-gradient(135deg,#7c3aed,#a855f7)" : "rgba(56,189,248,0.12)",
+                      border: `1px solid ${isPro ? "rgba(168,85,247,0.4)" : "rgba(56,189,248,0.25)"}`,
+                      color: isPro ? "#fff" : "#38bdf8",
                     }}>
-                      {user.premium ? <Crown size={16} /> : user.username.charAt(0).toUpperCase()}
+                      {isPro ? <Crown size={16} /> : user.username.charAt(0).toUpperCase()}
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -442,6 +466,7 @@ export default function SystemTab({
               </div>
 
               {/* ── Overlay gaming ── */}
+              <PlanGate isPro={isPro} feature="Overlay Gaming">
               <div style={{ background: "#0c0c1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px" }}>
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#374151", display: "block", marginBottom: 12 }}>
                   OVERLAY GAMING
@@ -474,112 +499,248 @@ export default function SystemTab({
                   </button>
                 </div>
               </div>
+              </PlanGate>
 
-              {/* ── Premium ── */}
+              {/* ── Plan Pro ── */}
               <div style={{
                 background: "#0c0c1a",
-                border: `1px solid ${user.premium ? "rgba(124,58,237,0.35)" : "rgba(255,255,255,0.06)"}`,
+                border: `1px solid ${isPro ? "rgba(124,58,237,0.35)" : "rgba(255,255,255,0.06)"}`,
                 borderRadius: 12, padding: "16px 18px",
                 position: "relative", overflow: "hidden",
               }}>
-                {user.premium && (
+                {/* Glow Pro actif */}
+                {isPro && (
                   <div style={{
-                    position: "absolute", top: 0, right: 0, width: 120, height: 120,
-                    background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)",
+                    position: "absolute", top: -20, right: -20, width: 160, height: 160,
+                    background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)",
                     pointerEvents: "none",
                   }} />
                 )}
+
+                {/* Header */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{
                       width: 34, height: 34, borderRadius: 9, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: user.premium ? "linear-gradient(135deg,#7c3aed,#a855f7)" : "rgba(124,58,237,0.1)",
-                      border: `1px solid ${user.premium ? "rgba(168,85,247,0.5)" : "rgba(124,58,237,0.2)"}`,
+                      background: isPro ? "linear-gradient(135deg,#7c3aed,#a855f7)" : "rgba(124,58,237,0.1)",
+                      border: `1px solid ${isPro ? "rgba(168,85,247,0.5)" : "rgba(124,58,237,0.2)"}`,
                     }}>
-                      <Crown size={15} style={{ color: user.premium ? "#fff" : "#a78bfa" }} />
+                      <Crown size={15} style={{ color: isPro ? "#fff" : "#a78bfa" }} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>
-                        {user.premium ? "Plan Premium" : "Passer en Premium"}
-                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>Plan Pro</div>
                       <div style={{ fontSize: 11, color: "#4b5563", marginTop: 1 }}>
-                        {user.premium ? "Toutes les fonctionnalités débloquées" : "Débloquez tout NexBoost"}
+                        {isPro ? "Toutes les fonctionnalités débloquées" : "Débloquez l'expérience complète NexBoost"}
                       </div>
                     </div>
                   </div>
-                  {user.premium && (
+                  {isPro && (
                     <span style={{
                       fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 5,
-                      background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.35)", color: "#c084fc",
-                      letterSpacing: "0.08em",
+                      background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.35)",
+                      color: "#c084fc", letterSpacing: "0.08em",
                     }}>
                       ACTIF
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 16px", marginBottom: 14 }}>
-                  {[
-                    "Profils de jeu", "Overlay amélioré",
-                    "Optimisations avancées", "Support prioritaire",
-                    "Historique illimité", "Détection auto jeux",
-                  ].map(f => (
-                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <CheckCircle size={10} style={{ color: user.premium ? "#a78bfa" : "#374151", flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, color: user.premium ? "#64748b" : "#374151" }}>{f}</span>
-                    </div>
-                  ))}
-                </div>
+                {/* ── Vue Pro actif ── */}
+                {isPro && (
+                  <>
+                    {/* Infos abonnement — affiché seulement si des données existent */}
+                    {(user.planExpiresAt || user.billingCycle) && (
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+                        padding: "10px 14px", borderRadius: 9,
+                        background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.18)",
+                        marginBottom: 14,
+                      }}>
+                        {user.planExpiresAt && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Calendar size={11} style={{ color: "#a78bfa", flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                              Expire le <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatExpiry(user.planExpiresAt)}</span>
+                            </span>
+                            {daysRemaining(user.planExpiresAt) <= 7 && (
+                              <span style={{
+                                fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+                                background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)",
+                                color: "#fbbf24",
+                              }}>
+                                {daysRemaining(user.planExpiresAt)}j restants
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {user.billingCycle && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <RotateCcw size={10} style={{ color: "#a78bfa", flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                              {user.billingCycle === "annual" ? "Annuel" : "Mensuel"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                {user.premium ? (
+                    {/* Features grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
+                      {PRO_FEATURES.map(f => (
+                        <div key={f} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <CheckCircle size={10} style={{ color: "#a78bfa", flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: "#64748b" }}>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* ── Vue Free : cartes tarifaires ── */}
+                {!isPro && !keySuccess && (
+                  <>
+                    {/* Cartes prix */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                      {/* Mensuel */}
+                      <div style={{
+                        borderRadius: 10, padding: "14px 14px 12px",
+                        background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
+                        display: "flex", flexDirection: "column", gap: 8,
+                      }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4b5563" }}>
+                          MENSUEL
+                        </span>
+                        <div>
+                          <span style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", lineHeight: 1 }}>6.99€</span>
+                          <span style={{ fontSize: 11, color: "#4b5563" }}>/mois</span>
+                        </div>
+                        <span style={{ fontSize: 10, color: "#374151" }}>Résiliable à tout moment</span>
+                        <button
+                          onClick={() => openUrl(CHECKOUT_URL_MONTHLY).catch(() => {})}
+                          style={{
+                            padding: "8px 0", borderRadius: 7, fontSize: 11, fontWeight: 700,
+                            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                            color: "#94a3b8", cursor: "pointer", transition: "all 0.15s",
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(56,189,248,0.08)"; e.currentTarget.style.borderColor = "rgba(56,189,248,0.25)"; e.currentTarget.style.color = "#38bdf8"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "#94a3b8"; }}
+                        >
+                          Choisir →
+                        </button>
+                      </div>
+
+                      {/* Annuel (mis en avant) */}
+                      <div style={{
+                        borderRadius: 10, padding: "14px 14px 12px",
+                        background: "rgba(124,58,237,0.08)",
+                        border: "1px solid rgba(124,58,237,0.3)",
+                        display: "flex", flexDirection: "column", gap: 8,
+                        position: "relative",
+                      }}>
+                        <span style={{
+                          position: "absolute", top: -1, right: 10,
+                          fontSize: 8, fontWeight: 800, letterSpacing: "0.1em",
+                          padding: "2px 7px", borderRadius: "0 0 5px 5px",
+                          background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff",
+                        }}>
+                          POPULAIRE
+                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7c3aed" }}>
+                          ANNUEL
+                        </span>
+                        <div>
+                          <span style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", lineHeight: 1 }}>34.99€</span>
+                          <span style={{ fontSize: 11, color: "#4b5563" }}>/an</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 10, color: "#64748b" }}>≈ 2.92€/mois</span>
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+                            background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)",
+                            color: "#4ade80",
+                          }}>
+                            −58%
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => openUrl(CHECKOUT_URL_ANNUAL).catch(() => {})}
+                          style={{
+                            padding: "8px 0", borderRadius: 7, fontSize: 11, fontWeight: 700,
+                            background: "linear-gradient(135deg,#7c3aed,#a855f7)", border: "none",
+                            color: "#fff", cursor: "pointer", transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+                        >
+                          Choisir →
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Séparateur */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+                      <span style={{ fontSize: 10, color: "#374151" }}>Déjà un code d'accès ?</span>
+                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+                    </div>
+
+                    {/* Activation clé */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          className="input-base"
+                          style={{ padding: "8px 12px", fontSize: 12, letterSpacing: "0.08em", fontFamily: "monospace" }}
+                          placeholder="XXXX-XXXX-XXXX-XXXX"
+                          value={keyInput}
+                          onChange={e => { setKeyInput(e.target.value.toUpperCase()); setKeyError(""); }}
+                          onKeyDown={e => e.key === "Enter" && handleActivateKey()}
+                        />
+                        <button
+                          onClick={handleActivateKey}
+                          disabled={keyLoading}
+                          style={{
+                            padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, flexShrink: 0,
+                            background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.35)", color: "#a78bfa",
+                            cursor: keyLoading ? "not-allowed" : "pointer",
+                            display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
+                            opacity: keyLoading ? 0.6 : 1,
+                          }}
+                          onMouseEnter={e => { if (!keyLoading) { e.currentTarget.style.background = "rgba(124,58,237,0.25)"; } }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(124,58,237,0.15)"; }}
+                        >
+                          {keyLoading
+                            ? <div className="animate-spin" style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(167,139,250,0.2)", borderTopColor: "#a78bfa" }} />
+                            : <><Zap size={12} /> Activer</>}
+                        </button>
+                      </div>
+                      {keyError && (
+                        <p style={{ fontSize: 11, color: "#f87171", margin: 0, display: "flex", alignItems: "center", gap: 5 }} className="animate-fadeIn">
+                          <AlertTriangle size={11} />{keyError}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Features grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginTop: 14 }}>
+                      {PRO_FEATURES.map(f => (
+                        <div key={f} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <CheckCircle size={10} style={{ color: "#374151", flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: "#374151" }}>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* ── Clé activée avec succès ── */}
+                {!isPro && keySuccess && (
                   <div style={{
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                    padding: "9px 0", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", color: "#a78bfa",
-                  }}>
-                    <Crown size={12} /> Premium activé — Merci !
-                  </div>
-                ) : keySuccess ? (
-                  <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                    padding: "9px 0", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    padding: "14px 0", borderRadius: 8, fontSize: 12, fontWeight: 600,
                     background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80",
                   }} className="animate-fadeIn">
-                    <CheckCircle size={12} /> Premium activé avec succès !
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <input
-                        className="input-base"
-                        style={{ padding: "8px 12px", fontSize: 12, letterSpacing: "0.08em", fontFamily: "monospace" }}
-                        placeholder="XXXX-XXXX-XXXX-XXXX"
-                        value={keyInput}
-                        onChange={e => { setKeyInput(e.target.value.toUpperCase()); setKeyError(""); }}
-                        onKeyDown={e => e.key === "Enter" && handleActivateKey()}
-                      />
-                      <button
-                        onClick={handleActivateKey}
-                        disabled={keyLoading}
-                        style={{
-                          padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, flexShrink: 0,
-                          background: "linear-gradient(135deg, #7c3aed, #a855f7)", color: "#fff", border: "none",
-                          cursor: keyLoading ? "not-allowed" : "pointer",
-                          display: "flex", alignItems: "center", gap: 6, transition: "opacity 0.15s",
-                          opacity: keyLoading ? 0.6 : 1,
-                        }}
-                      >
-                        {keyLoading
-                          ? <div className="animate-spin" style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: "#fff" }} />
-                          : <><Crown size={12} /> Activer</>}
-                      </button>
-                    </div>
-                    {keyError && (
-                      <p style={{ fontSize: 11, color: "#f87171", margin: 0, display: "flex", alignItems: "center", gap: 5 }} className="animate-fadeIn">
-                        <AlertTriangle size={11} />{keyError}
-                      </p>
-                    )}
+                    <CheckCircle size={13} /> Plan Pro activé avec succès !
                   </div>
                 )}
               </div>
